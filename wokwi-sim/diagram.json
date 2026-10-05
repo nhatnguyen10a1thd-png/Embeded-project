@@ -1,0 +1,146 @@
+{
+  "version": 1,
+  "author": "Nhom 25",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "type": "wokwi-text",
+      "id": "title1",
+      "top": -220,
+      "left": -190,
+      "attrs": { "text": "ESP32 - DEN PWM + QUAT STEPPER (MO PHONG)" }
+    },
+    { "type": "wokwi-esp32-devkit-v1", "id": "esp32", "top": -90, "left": -140, "attrs": {} },
+    {
+      "type": "wokwi-led",
+      "id": "lamp",
+      "top": -125,
+      "left": 170,
+      "attrs": { "color": "white", "lightColor": "#fff4b0", "label": "DEN 12V (MO PHONG)" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "rLamp",
+      "top": -43.2,
+      "left": 57.05,
+      "rotate": 90,
+      "attrs": { "value": "220", "label": "220R" }
+    },
+    { "type": "wokwi-a4988", "id": "driver", "top": 85, "left": 70, "attrs": {} },
+    {
+      "type": "wokwi-stepper-motor",
+      "id": "fanMotor",
+      "top": 70.81,
+      "left": 307.63,
+      "attrs": { "size": "17", "display": "angle", "arrow": "green" }
+    },
+    {
+      "type": "wokwi-text",
+      "id": "fanLabel",
+      "top": 255,
+      "left": 305,
+      "attrs": { "text": "QUAT 12V - MO PHONG BANG STEPPER" }
+    },
+    {
+      "type": "wokwi-battery",
+      "id": "supply12v",
+      "top": 330,
+      "left": 260,
+      "attrs": { "voltage": "12", "label": "NGUON MOTOR 12V" }
+    },
+    {
+      "type": "wokwi-capacitor",
+      "id": "vmotCap",
+      "top": 345,
+      "left": 430,
+      "attrs": { "value": "100uF", "label": "LOC VMOT" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "lightButton",
+      "top": -180,
+      "left": -390,
+      "attrs": { "color": "yellow", "label": "L: BAT/TAT DEN", "key": "L" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "fanButton",
+      "top": 210,
+      "left": -390,
+      "attrs": { "color": "green", "label": "F: BAT/TAT QUAT", "key": "F" }
+    },
+    {
+      "type": "wokwi-potentiometer",
+      "id": "lightPot",
+      "top": -55,
+      "left": -405,
+      "attrs": { "value": "716", "label": "DO SANG 0-100%" }
+    },
+    {
+      "type": "wokwi-potentiometer",
+      "id": "fanPot",
+      "top": 80,
+      "left": -405,
+      "attrs": { "value": "614", "label": "TOC DO QUAT 0-100%" }
+    },
+    {
+      "type": "wokwi-logic-analyzer",
+      "id": "logic",
+      "top": 450,
+      "left": -120,
+      "attrs": { "channelNames": "LIGHT_PWM,FAN_STEP,FAN_DIR", "bufferSize": "50000" }
+    },
+    {
+      "type": "wokwi-text",
+      "id": "logicNote",
+      "top": 585,
+      "left": -120,
+      "attrs": { "text": "LOGIC ANALYZER = DUNG CU DO AO (ngoai doi: USB logic analyzer / oscilloscope)" }
+    }
+  ],
+  "connections": [
+    [ "esp32:TX0", "$serialMonitor:RX", "", [] ],
+    [ "esp32:RX0", "$serialMonitor:TX", "", [] ],
+    [ "esp32:D25", "rLamp:1", "green", [ "h-28.2", "v-126.1", "h342.55" ] ],
+    [ "rLamp:2", "lamp:A", "green", [] ],
+    [ "lamp:C", "esp32:GND.1", "black", [ "v140.6", "h-185", "v1.4" ] ],
+    [ "esp32:D26", "driver:STEP", "orange", [ "h-47.4", "v133", "h230.4", "v3.4" ] ],
+    [ "esp32:D27", "driver:DIR", "blue", [ "h-28.2", "v142.4", "h201.6", "v-6.2" ] ],
+    [ "esp32:3V3", "driver:VDD", "red", [ "h249.9", "v78.82" ] ],
+    [ "esp32:GND.1", "driver:GND.1", "black", [] ],
+    [ "esp32:3V3", "driver:SLEEP", "red", [] ],
+    [ "esp32:3V3", "driver:RESET", "red", [] ],
+    [ "driver:ENABLE", "driver:GND.1", "black", [] ],
+    [ "driver:MS1", "driver:GND.1", "black", [] ],
+    [ "driver:MS2", "driver:GND.1", "black", [] ],
+    [ "driver:MS3", "driver:GND.1", "black", [] ],
+    [ "driver:1B", "fanMotor:B-", "blue", [ "h69.35", "v169.48", "h213.58" ] ],
+    [ "driver:1A", "fanMotor:B+", "cyan", [ "h11.75", "v169.48", "h261.57" ] ],
+    [ "driver:2A", "fanMotor:A+", "green", [ "h21.35", "v169.48", "h242.37" ] ],
+    [ "driver:2B", "fanMotor:A-", "yellow", [ "h30.95", "v169.48", "h223.17" ] ],
+
+    [ "supply12v:VOUT+", "driver:VMOT", "red", [] ],
+    [ "supply12v:VOUT-", "driver:GND.2", "black", [] ],
+    [ "supply12v:VOUT-", "esp32:GND.1", "black", [] ],
+    [ "vmotCap:1", "driver:VMOT", "red", [] ],
+    [ "vmotCap:2", "driver:GND.2", "black", [] ],
+
+    [ "esp32:D32", "lightButton:1.l", "yellow", [] ],
+    [ "lightButton:2.l", "esp32:GND.1", "black", [] ],
+    [ "esp32:D33", "fanButton:1.l", "green", [] ],
+    [ "fanButton:2.l", "esp32:GND.1", "black", [] ],
+    [ "lightPot:VCC", "esp32:3V3", "red", [] ],
+    [ "lightPot:GND", "esp32:GND.2", "black", [] ],
+    [ "lightPot:SIG", "esp32:D34", "yellow", [] ],
+    [ "fanPot:VCC", "esp32:3V3", "red", [] ],
+    [ "fanPot:GND", "esp32:GND.2", "black", [] ],
+    [ "fanPot:SIG", "esp32:D35", "green", [] ],
+
+    [ "esp32:D25", "logic:D0", "green", [] ],
+    [ "esp32:D26", "logic:D1", "orange", [] ],
+    [ "esp32:D27", "logic:D2", "blue", [] ],
+    [ "logic:GND", "esp32:GND.2", "black", [] ]
+  ],
+  "serialMonitor": { "display": "always", "newline": "lf" },
+  "dependencies": {}
+}

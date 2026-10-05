@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#07111f">
+  <title>Nhóm 25 · Gesture Control</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="ambient ambient-one"></div>
+  <div class="ambient ambient-two"></div>
+
+  <header class="topbar">
+    <a class="brand" href="#" aria-label="Trang chủ">
+      <span class="brand-mark">25</span>
+      <span><strong>Gesture Home</strong><small>ESP32 control studio</small></span>
+    </a>
+
+    <div class="top-actions">
+      <div id="connectionBadge" class="status-pill offline">
+        <span class="status-dot"></span>
+        <span id="connectionText">ESP32 chưa kết nối</span>
+      </div>
+      <div class="mode-switch" role="group" aria-label="Chế độ điều khiển">
+        <button id="manualModeBtn" class="mode-button active" type="button">Thủ công</button>
+        <button id="gestureModeBtn" class="mode-button" type="button">Cử chỉ</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="layout">
+    <div id="connectionHelp" role="status" style="grid-column:1/-1;padding:16px;border:1px solid #ffca63;border-radius:12px;color:#ffdf9d">Đang kiểm tra kết nối Wokwi…</div>
+    <section class="panel camera-panel">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">CAMERA LAPTOP</p>
+          <h1>Điều khiển bằng bàn tay</h1>
+        </div>
+        <div id="cameraBadge" class="mini-badge">Camera đang tắt</div>
+      </div>
+
+      <div class="camera-stage">
+        <video id="webcam" autoplay muted playsinline></video>
+        <canvas id="overlay"></canvas>
+        <div id="cameraPlaceholder" class="camera-placeholder">
+          <div class="camera-icon">◉</div>
+          <strong>Sẵn sàng nhận diện</strong>
+          <span>Camera chỉ được bật sau khi bạn cho phép</span>
+        </div>
+        <div class="scan-line"></div>
+        <div class="camera-readout">
+          <span id="handedness">—</span>
+          <span id="fpsValue">0 FPS</span>
+        </div>
+      </div>
+
+      <div class="camera-footer">
+        <button id="cameraButton" class="primary-button" type="button">Bật camera</button>
+        <p id="cameraMessage">Nhận diện chạy ngay trong trình duyệt bằng MediaPipe.</p>
+      </div>
+    </section>
+
+    <aside class="panel vision-panel">
+      <div class="panel-heading compact">
+        <div>
+          <p class="eyebrow">VISION SIGNAL</p>
+          <h2>Nhận diện trực tiếp</h2>
+        </div>
+      </div>
+
+      <div class="gesture-orb" id="gestureOrb">
+        <span id="gestureIcon">✋</span>
+      </div>
+      <div class="gesture-name" id="gestureName">Không thấy tay</div>
+      <div class="gesture-subtitle" id="gestureSubtitle">Bật camera để bắt đầu</div>
+
+      <div class="metric-list">
+        <div class="metric-row"><span>Thiết bị đang chọn</span><strong id="selectedDevice">Đèn</strong></div>
+        <div class="metric-row"><span>Khoảng cách chuẩn hóa</span><strong id="pinchRatio">—</strong></div>
+        <div class="metric-row"><span>Mức điều khiển</span><strong id="pinchLevel">—</strong></div>
+        <div class="level-track"><span id="pinchBar"></span></div>
+      </div>
+
+      <div class="gesture-help">
+        <p><span>☝</span><b>1 ngón</b> Chọn đèn</p>
+        <p><span>✌</span><b>2 ngón</b> Chọn quạt</p>
+        <p><span>✋</span><b>Xòe tay</b> Bật thiết bị</p>
+        <p><span>✊</span><b>Nắm tay</b> Tắt thiết bị</p>
+        <p><span>🤏</span><b>Chụm tay</b> Chỉnh mức</p>
+      </div>
+    </aside>
+
+    <section class="device-grid">
+      <article class="panel device-card" id="lightCard">
+        <div class="device-topline">
+          <div class="device-icon light-icon">☀</div>
+          <div>
+            <p class="eyebrow">LIGHT · GPIO 25</p>
+            <h2>Đèn</h2>
+          </div>
+          <span id="lightState" class="device-state off">OFF</span>
+        </div>
+        <div class="value-line"><strong id="lightValue">0</strong><span>%</span></div>
+        <div class="output-meter"><span id="lightMeter"></span></div>
+        <fieldset class="manual-controls" id="lightControls">
+          <div class="button-pair">
+            <button type="button" data-command="LIGHT_ON">Bật</button>
+            <button type="button" data-command="LIGHT_OFF">Tắt</button>
+          </div>
+          <label for="lightSlider"><span>Độ sáng</span><output id="lightOutput">0%</output></label>
+          <input id="lightSlider" type="range" min="0" max="100" step="1" value="0">
+        </fieldset>
+      </article>
+
+      <article class="panel device-card" id="fanCard">
+        <div class="device-topline">
+          <div class="device-icon fan-icon">✣</div>
+          <div>
+            <p class="eyebrow">FAN · GPIO 26</p>
+            <h2>Quạt</h2>
+          </div>
+          <span id="fanState" class="device-state off">OFF</span>
+        </div>
+        <div class="value-line"><strong id="fanValue">0</strong><span>%</span></div>
+        <div class="output-meter fan-meter"><span id="fanMeter"></span></div>
+        <fieldset class="manual-controls" id="fanControls">
+          <div class="button-pair">
+            <button type="button" data-command="FAN_ON">Bật</button>
+            <button type="button" data-command="FAN_OFF">Tắt</button>
+          </div>
+          <label for="fanSlider"><span>Tốc độ</span><output id="fanOutput">0%</output></label>
+          <input id="fanSlider" type="range" min="0" max="100" step="1" value="0">
+        </fieldset>
+      </article>
+    </section>
+
+    <section class="panel control-panel">
+      <div class="panel-heading compact">
+        <div>
+          <p class="eyebrow">SYSTEM CONTROL</p>
+          <h2>Trạng thái hệ thống</h2>
+        </div>
+      </div>
+      <div class="system-facts">
+        <div><span>Chế độ</span><strong id="modeLabel">THỦ CÔNG</strong></div>
+        <div><span>Nguồn trạng thái</span><strong>ESP32 FEEDBACK</strong></div>
+        <div><span>Kết nối</span><strong id="transportLabel">WOKWI SERIAL</strong></div>
+      </div>
+      <button id="allOffButton" class="danger-button" type="button">Tắt toàn bộ</button>
+      <p class="hint">Trong chế độ Cử chỉ, các điều khiển thủ công được khóa để hai nguồn lệnh không ghi đè nhau.</p>
+    </section>
+
+    <section class="panel activity-panel">
+      <div class="panel-heading compact">
+        <div>
+          <p class="eyebrow">ACTIVITY</p>
+          <h2>Nhật ký gần đây</h2>
+        </div>
+        <button id="clearLogButton" class="text-button" type="button">Xóa</button>
+      </div>
+      <div id="activityLog" class="activity-log" aria-live="polite">
+        <div class="empty-log">Chưa có thao tác nào.</div>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status"></div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
