@@ -2,12 +2,19 @@
 #include <WiFi.h>
 #include <WebServer.h>
 
-// ===== Hardware assumptions for the Wokwi prototype =====
-// ESP32 only outputs 3.3V control signals. In Wokwi, the light is represented
-// by a PWM LED and the fan is represented by an A4988 + stepper motor.
+// Build with the `esp32physical` PlatformIO environment for the real hardware.
+// The default `esp32dev` environment remains the Wokwi stepper simulation.
+#if defined(PHYSICAL_HARDWARE)
+#include "physical_wifi.h"
+#endif
+
 constexpr uint8_t LIGHT_PWM_PIN = 25;
+#if defined(PHYSICAL_HARDWARE)
+constexpr uint8_t FAN_PWM_PIN = 26;
+#else
 constexpr uint8_t FAN_STEP_PIN = 26;
 constexpr uint8_t FAN_DIR_PIN = 27;
+#endif
 constexpr uint8_t LIGHT_BUTTON_PIN = 32;
 constexpr uint8_t FAN_BUTTON_PIN = 33;
 constexpr uint8_t LIGHT_POT_PIN = 34;
@@ -25,19 +32,30 @@ constexpr uint16_t FAN_MAX_STEPS_PER_SECOND = 500;
 constexpr uint32_t POT_SAMPLE_INTERVAL_MS = 50;
 constexpr uint8_t POT_PERCENT_DEADBAND = 1;
 
+#if defined(PHYSICAL_HARDWARE)
+const char *WIFI_SSID = PHYSICAL_WIFI_SSID;
+const char *WIFI_PASSWORD = PHYSICAL_WIFI_PASSWORD;
+#else
 const char *WIFI_SSID = "Wokwi-GUEST";
 const char *WIFI_PASSWORD = "";
+#endif
 
 WebServer server(80);
 
 struct DeviceState {
-  // Start ON in this Wokwi-only project so both loads are immediately visible.
-  // Change both values to false for a physical installation that must power up
-  // in a safe OFF state.
+#if defined(PHYSICAL_HARDWARE)
+  // Physical outputs always start OFF after reset.
+  bool lightOn = false;
+  uint8_t brightness = 70;
+  bool fanOn = false;
+  uint8_t fanSpeed = 60;
+#else
+  // Start ON in Wokwi so both simulated loads are immediately visible.
   bool lightOn = true;
   uint8_t brightness = 70;
   bool fanOn = true;
   uint8_t fanSpeed = 60;
+#endif
   String lastSource = "BOOT";
 };
 
@@ -70,12 +88,17 @@ uint32_t lastWifiAttemptAt = 0;
 uint32_t lastPotSampleAt = 0;
 uint32_t lastPwmRampAt = 0;
 uint32_t lastFanRampAt = 0;
+#if defined(PHYSICAL_HARDWARE)
+uint8_t targetFanDuty = 0;
+uint8_t appliedFanDuty = 0;
+#else
 uint32_t nextFanEdgeAtUs = 0;
-uint8_t targetLightDuty = 0;
-uint8_t appliedLightDuty = 0;
 uint16_t targetFanStepsPerSecond = 0;
 uint16_t appliedFanStepsPerSecond = 0;
 bool fanStepLevel = LOW;
+#endif
+uint8_t targetLightDuty = 0;
+uint8_t appliedLightDuty = 0;
 
 uint8_t clampPercent(int value) {
   return static_cast<uint8_t>(constrain(value, 0, 100));
@@ -94,8 +117,12 @@ uint16_t fanPercentToStepsPerSecond(uint8_t percent) {
 
 void applyOutputs() {
   targetLightDuty = state.lightOn ? lightPercentToDuty(state.brightness) : 0;
+#if defined(PHYSICAL_HARDWARE)
+  targetFanDuty = state.fanOn ? lightPercentToDuty(state.fanSpeed) : 0;
+#else
   targetFanStepsPerSecond =
       state.fanOn ? fanPercentToStepsPerSecond(state.fanSpeed) : 0;
+#endif
 }
 
 uint8_t approachDuty(uint8_t current, uint8_t target) {
@@ -138,14 +165,23 @@ void updateFanRamp() {
   const uint32_t now = millis();
   if (now - lastFanRampAt < FAN_RAMP_INTERVAL_MS) return;
   lastFanRampAt = now;
+#if defined(PHYSICAL_HARDWARE)
+  const uint8_t nextFan = approachDuty(appliedFanDuty, targetFanDuty);
+  if (nextFan != appliedFanDuty) {
+    appliedFanDuty = nextFan;
+    analogWrite(FAN_PWM_PIN, appliedFanDuty);
+  }
+#else
   appliedFanStepsPerSecond =
       approachRate(appliedFanStepsPerSecond, targetFanStepsPerSecond);
   if (appliedFanStepsPerSecond == 0) {
     fanStepLevel = LOW;
     digitalWrite(FAN_STEP_PIN, LOW);
   }
+#endif
 }
 
+#if !defined(PHYSICAL_HARDWARE)
 void updateFanStepPulse() {
   if (appliedFanStepsPerSecond == 0) return;
 
@@ -157,21 +193,29 @@ void updateFanStepPulse() {
   const uint32_t halfPeriodUs = 500000UL / appliedFanStepsPerSecond;
   nextFanEdgeAtUs = nowUs + halfPeriodUs;
 }
+#endif
 
 void updateSmoothOutputs() {
   updateLightRamp();
   updateFanRamp();
+#if !defined(PHYSICAL_HARDWARE)
   updateFanStepPulse();
+#endif
 }
 
 void initializeOutputs() {
   pinMode(LIGHT_PWM_PIN, OUTPUT);
+#if defined(PHYSICAL_HARDWARE)
+  pinMode(FAN_PWM_PIN, OUTPUT);
+  analogWrite(FAN_PWM_PIN, 0);
+#else
   pinMode(FAN_STEP_PIN, OUTPUT);
   pinMode(FAN_DIR_PIN, OUTPUT);
-  analogWrite(LIGHT_PWM_PIN, 0);
   digitalWrite(FAN_STEP_PIN, LOW);
   digitalWrite(FAN_DIR_PIN, HIGH);
   nextFanEdgeAtUs = micros();
+#endif
+  analogWrite(LIGHT_PWM_PIN, 0);
   applyOutputs();
 }
 
@@ -185,13 +229,21 @@ void initializeInputs() {
 
 void initializeHardware() {
   initializeOutputs();
+#if !defined(PHYSICAL_HARDWARE)
   initializeInputs();
+#endif
 }
 
 void printHardwareSummary() {
+#if defined(PHYSICAL_HARDWARE)
+  Serial.println(F("Hardware: D25=LED PWM, D26=DC fan PWM"));
+  Serial.println(F("Physical mode: buttons/potentiometers disabled; outputs start OFF."));
+  Serial.println(F("Connect ESP32 GND to the MOSFET control GND and 5V supply GND."));
+#else
   Serial.println(F("Hardware: GPIO25=light PWM, GPIO26=fan STEP, GPIO27=fan DIR"));
   Serial.println(F("Fan model: A4988 + stepper, 40..500 steps/s"));
   Serial.println(F("External 12V supplies VMOT; ESP32 and driver share GND."));
+#endif
 }
 
 String jsonState() {
@@ -435,9 +487,17 @@ void maintainWifi() {
   httpServerStarted = false;
   if (lastWifiAttemptAt == 0 || now - lastWifiAttemptAt >= WIFI_RETRY_MS) {
     lastWifiAttemptAt = now;
+#if defined(PHYSICAL_HARDWARE)
+    Serial.println(F("WiFi: connecting to configured 2.4 GHz network..."));
+#else
     Serial.println(F("WiFi: connecting to Wokwi-GUEST..."));
+#endif
     WiFi.disconnect();
+#if defined(PHYSICAL_HARDWARE)
+    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+#else
     WiFi.begin(WIFI_SSID, WIFI_PASSWORD, 6);
+#endif
   }
 }
 
@@ -449,7 +509,11 @@ void setup() {
   configureHttpApi();
   WiFi.mode(WIFI_STA);
 
+#if defined(PHYSICAL_HARDWARE)
+  Serial.println(F("\n=== NHOM 25 - ESP32 PHYSICAL LIGHT/FAN ==="));
+#else
   Serial.println(F("\n=== NHOM 25 - ESP32 LIGHT/FAN WOKWI SIMULATION ==="));
+#endif
   printHardwareSummary();
   printHelp();
   emitState();
@@ -458,7 +522,9 @@ void setup() {
 
 void loop() {
   handleSerial();
+#if !defined(PHYSICAL_HARDWARE)
   handleLocalTestControls();
+#endif
   updateSmoothOutputs();
   maintainWifi();
   delay(5);

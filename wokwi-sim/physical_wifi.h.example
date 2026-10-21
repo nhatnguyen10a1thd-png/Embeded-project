@@ -1,0 +1,5 @@
+#pragma once
+
+// Copy this file to physical_wifi.h, then enter your 2.4 GHz Wi-Fi details.
+#define PHYSICAL_WIFI_SSID "YOUR_WIFI_NAME"
+#define PHYSICAL_WIFI_PASSWORD "YOUR_WIFI_PASSWORD"

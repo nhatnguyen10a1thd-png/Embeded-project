@@ -1,2 +1,3 @@
 .pio/
 *.vcd
+physical_wifi.h
